@@ -42,7 +42,7 @@ class GGNStackEncoder(torch.nn.Module):
             nhid=hidden_size,
             nout=hidden_size,
             dropout=dropout,
-            pool_ratio=0.9,
+            pool_ratio=0.6, #updated the pool ratio to 0.6
         )
 
         self.encoder_h = hidden_size
@@ -52,7 +52,7 @@ class GGNStackEncoder(torch.nn.Module):
 
     def forward(self, x):
         h = self.cnn(x)
-        _, z_seq = self.gnn(h, self.edge_index, self.edge_weight)
+        _, z_seq = self.gnn(h, self.edge_index, self.edge_weight) #can increase the batch size in the forward pass
         return z_seq
 
     def save(self, path):
