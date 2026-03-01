@@ -226,18 +226,11 @@ def load_datasets(experiment, label_dict=None, epoch_len=2560, use_to1020=True, 
                 if suggested_lpf is not None and not hasattr(ds, 'lpf'):
                     ds.lpf = suggested_lpf
 
-        # Generate a mapping ignoring the files in the git annex, only looking at the symlinks
-        search_pattern = os.path.join(toplevel, "**/eeg/*.edf")
-        eeg_files = glob.glob(search_pattern, recursive=True)
-        mapping = ds.auto_mapping(files=eeg_files)
+        dataset = get_ds(name, ds, use_to1020)
 
-        dataset = ds.auto_construct_dataset(mapping)
-
-        if use_to1020:
-            dataset.add_transform(To1020())
-        elif use_GNN:
-            subj = "sub-001"
+        if use_GNN:
             edge_index, edge_weight = adjacency_bids(top_level=toplevel)
+
 
         is_validation = (hasattr(experiment, 'validation_dataset') and
                          experiment.validation_dataset == name)

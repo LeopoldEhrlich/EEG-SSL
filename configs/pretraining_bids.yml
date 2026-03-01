@@ -1,15 +1,21 @@
 Configuratron:
   use_only:
+    - ds003029
+    - ds003555
     - ds003775
+    - ds003810
+    - ds004011
+    - ds004381
+    - ds004446
+    - ds004447
+    - ds004504
+    - ds005385
+    - ds006914
   samples: 2560   # 10 seconds at 256 Hz
   sfreq: 256
   
   deep1010:
     return_mask: True
-
-# ds004504 removed - has pre-epoched .set files DN3 can't load as raw
-# ds007358 removed - didn't fully download
-# no validation split since we only have one dataset
 
 augmentation_params:
   upsample_crop: 32
@@ -19,7 +25,7 @@ training_params:
   epochs: 10
   validation_interval: 100
   train_log_interval: 100
-  batch_size: 8
+  batch_size: 64
   warmup_frac: 0.05
 
 mask_threshold: 0.85
@@ -42,14 +48,100 @@ bending_college_args:
   enc_feat_l2: 1.0
 
 datasets:
+  ds003029:
+    toplevel: ./data/open_neuro_datasets/ds003029
+    stride: 2560
+    data_max: 0.001
+    data_min: -0.001
+    lpf: 120
+    picks:
+      - eeg
+
+  ds003555:
+    toplevel: ./data/open_neuro_datasets/ds003555
+    stride: 2560
+    data_max: 0.001
+    data_min: -0.001
+    lpf: 120
+    picks:
+      - eeg
   ds003775:
     toplevel: ./data/open_neuro_datasets/ds003775
     stride: 2560
     data_max: 0.001
     data_min: -0.001
-    lpf: 50
+    lpf: 120
     picks:
       - eeg
 
-    
+  ds003810:
+    toplevel: ./data/open_neuro_datasets/ds003810
+    stride: 2560
+    data_max: 0.001
+    data_min: -0.001
+    lpf: 120
+    picks:
+      - eeg
 
+  ds004011:
+    toplevel: ./data/open_neuro_datasets/ds004011
+    stride: 2560
+    data_max: 0.001
+    data_min: -0.001
+    lpf: 120
+    picks:
+      - eeg
+
+  ds004381:
+    toplevel: ./data/open_neuro_datasets/ds004381
+    stride: 2560
+    data_max: 0.001
+    data_min: -0.001
+    lpf: 120
+    picks:
+      - eeg
+
+  ds004446:
+    toplevel: ./data/open_neuro_datasets/ds004446
+    stride: 2560
+    data_max: 0.001
+    data_min: -0.001
+    lpf: 120
+    picks:
+      - eeg
+
+  ds004447:
+    toplevel: ./data/open_neuro_datasets/ds004447
+    stride: 2560
+    data_max: 0.001
+    data_min: -0.001
+    lpf: 120
+    picks:
+      - eeg
+
+  ds004504:
+    toplevel: ./data/open_neuro_datasets/ds004504
+    stride: 2560
+    data_max: 0.001
+    data_min: -0.001
+    lpf: 120
+    picks:
+      - eeg
+
+  ds005385:
+    toplevel: ./data/open_neuro_datasets/ds005385
+    stride: 2560
+    data_max: 0.001
+    data_min: -0.001
+    lpf: 120
+    picks:
+      - eeg
+ 
+  ds006914:
+    toplevel: ./data/open_neuro_datasets/ds006914
+    stride: 2560
+    data_max: 0.001
+    data_min: -0.001
+    lpf: 120
+    picks:
+      - eeg

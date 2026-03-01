@@ -22,7 +22,6 @@ from itertools import combinations
 METRICS = {
     'bac':      {'label': 'BAC',      'higher_better': True},
     'Accuracy': {'label': 'Accuracy', 'higher_better': True},
-    'loss':     {'label': 'Loss',     'higher_better': False},
 }
 PALETTE = ['#2196F3', '#F44336', '#4CAF50', '#FF9800', '#9C27B0']
 
@@ -72,96 +71,133 @@ def pairwise_tests(dfs, metric):
     return results
 
 # ── Plotting ──────────────────────────────────────────────────────────────────
+STYLE = {
+    'font.family':       'DejaVu Sans',
+    'axes.spines.top':   False,
+    'axes.spines.right': False,
+    'axes.grid':         True,
+    'grid.color':        '#e0e0e0',
+    'grid.linewidth':    0.7,
+    'axes.labelsize':    11,
+    'axes.titlesize':    13,
+    'axes.titleweight':  'bold',
+    'xtick.labelsize':   10,
+    'ytick.labelsize':   10,
+    'figure.facecolor':  'white',
+    'axes.facecolor':    '#fafafa',
+}
+
+def add_shared_legend(fig, models, colors, ncol=None):
+    """Add a clean shared legend centred at the bottom of the figure."""
+    handles = [mpatches.Patch(facecolor=colors[m], edgecolor='#444', linewidth=0.8, label=m)
+               for m in models]
+    fig.legend(handles=handles, loc='lower center',
+               ncol=ncol or len(models),
+               frameon=True, framealpha=0.9, edgecolor='#cccccc',
+               fontsize=10, title='Model', title_fontsize=10,
+               bbox_to_anchor=(0.5, -0.04))
+
 def plot_all(dfs, stats_df, out_dir):
     models  = list(dfs.keys())
     colors  = {m: PALETTE[i % len(PALETTE)] for i, m in enumerate(models)}
-    n_cols  = 3
     metrics = [m for m in METRICS if m in list(dfs.values())[0].columns]
+    plt.rcParams.update(STYLE)
 
-    # ── Figure 1: Bar chart with error bars ──
-    fig, axes = plt.subplots(1, len(metrics), figsize=(5 * len(metrics), 5))
+    # ── Figure 1: Bar chart with error bars ──────────────────────────────────
+    fig, axes = plt.subplots(1, len(metrics), figsize=(4.5 * len(metrics), 5.2),
+                             constrained_layout=False)
     if len(metrics) == 1: axes = [axes]
+    x      = np.arange(len(models))
+    width  = 0.55
     for ax, metric in zip(axes, metrics):
         means = [stats_df.loc[stats_df.Model == m, f'{metric}_mean'].values[0] for m in models]
         sems  = [stats_df.loc[stats_df.Model == m, f'{metric}_sem'].values[0]  for m in models]
-        bars  = ax.bar(models, means, yerr=sems, capsize=6,
-                       color=[colors[m] for m in models], edgecolor='black', linewidth=0.8,
-                       error_kw=dict(elinewidth=1.5, ecolor='#333333'))
-        ax.set_title(METRICS[metric]['label'], fontsize=13, fontweight='bold')
-        ax.set_ylabel('Value', fontsize=11)
-        ax.set_xlabel('Model', fontsize=11)
-        ax.tick_params(axis='x', rotation=30)
-        for bar, val in zip(bars, means):
-            ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + max(sems)*0.3,
-                    f'{val:.4f}', ha='center', va='bottom', fontsize=9)
-        # highlight best
         best_idx = int(np.argmax(means) if METRICS[metric]['higher_better'] else np.argmin(means))
-        bars[best_idx].set_edgecolor('gold')
-        bars[best_idx].set_linewidth(3)
-    plt.suptitle('Model Comparison — Mean ± SEM', fontsize=15, fontweight='bold', y=1.02)
-    plt.tight_layout()
+        for i, (m, mean, sem) in enumerate(zip(models, means, sems)):
+            lw   = 2.5 if i == best_idx else 0.7
+            ec   = '#FFD700' if i == best_idx else '#444444'
+            bar  = ax.bar(i, mean, width, yerr=sem, capsize=5,
+                          color=colors[m], edgecolor=ec, linewidth=lw,
+                          error_kw=dict(elinewidth=1.5, ecolor='#333333', capthick=1.5))
+            ax.text(i, mean + sem + 0.002, f'{mean:.4f}',
+                    ha='center', va='bottom', fontsize=8.5, color='#222')
+        ax.set_title(METRICS[metric]['label'])
+        ax.set_ylabel('Value')
+        ax.set_xticks([])          # no x-tick labels — legend does the job
+        ax.set_xlim(-0.6, len(models) - 0.4)
+        ymin = min(means) * 0.96
+        ax.set_ylim(bottom=ymin)
+    fig.suptitle('Model Comparison — Mean ± SEM', fontsize=14, fontweight='bold', y=1.01)
+    add_shared_legend(fig, models, colors)
+    fig.subplots_adjust(bottom=0.14, wspace=0.35)
     fig.savefig(os.path.join(out_dir, 'fig1_bar_comparison.png'), dpi=150, bbox_inches='tight')
     plt.close()
 
-    # ── Figure 2: Violin / box plots ──
-    fig, axes = plt.subplots(1, len(metrics), figsize=(5 * len(metrics), 5))
+    # ── Figure 2: Violin + box plots ─────────────────────────────────────────
+    fig, axes = plt.subplots(1, len(metrics), figsize=(4.5 * len(metrics), 5.2),
+                             constrained_layout=False)
     if len(metrics) == 1: axes = [axes]
     for ax, metric in zip(axes, metrics):
         data   = [dfs[m][metric].dropna().values for m in models]
         vparts = ax.violinplot(data, positions=range(len(models)),
-                               showmeans=True, showmedians=False)
-        for i, (body, m) in enumerate(zip(vparts['bodies'], models)):
+                               showmeans=True, showmedians=False, widths=0.7)
+        for body, m in zip(vparts['bodies'], models):
             body.set_facecolor(colors[m])
-            body.set_alpha(0.6)
+            body.set_alpha(0.55)
+            body.set_edgecolor(colors[m])
+            body.set_linewidth(1)
         for part in ['cmeans', 'cbars', 'cmins', 'cmaxes']:
             if part in vparts:
-                vparts[part].set_color('#333333')
+                vparts[part].set_color('#444444')
                 vparts[part].set_linewidth(1.5)
-        ax.boxplot(data, positions=range(len(models)), widths=0.1,
-                   medianprops=dict(color='black', linewidth=2),
-                   whiskerprops=dict(linewidth=1.2),
-                   capprops=dict(linewidth=1.2),
-                   flierprops=dict(marker='o', markersize=4, alpha=0.5))
-        ax.set_xticks(range(len(models)))
-        ax.set_xticklabels(models, rotation=30, ha='right')
-        ax.set_title(METRICS[metric]['label'], fontsize=13, fontweight='bold')
-        ax.set_ylabel('Value', fontsize=11)
-    plt.suptitle('Model Comparison — Distributions', fontsize=15, fontweight='bold', y=1.02)
-    plt.tight_layout()
+        ax.boxplot(data, positions=range(len(models)), widths=0.12,
+                   medianprops=dict(color='#111111', linewidth=2.5),
+                   whiskerprops=dict(linewidth=1.3, color='#444'),
+                   capprops=dict(linewidth=1.3, color='#444'),
+                   flierprops=dict(marker='o', markersize=3.5, alpha=0.45, color='#555'),
+                   boxprops=dict(linewidth=1.3, color='#444'))
+        ax.set_xticks([])
+        ax.set_title(METRICS[metric]['label'])
+        ax.set_ylabel('Value')
+    fig.suptitle('Model Comparison — Distributions', fontsize=14, fontweight='bold', y=1.01)
+    add_shared_legend(fig, models, colors)
+    fig.subplots_adjust(bottom=0.14, wspace=0.35)
     fig.savefig(os.path.join(out_dir, 'fig2_violin_distribution.png'), dpi=150, bbox_inches='tight')
     plt.close()
 
-    # ── Figure 3: Per-subject scatter (all metrics) ──
-    fig, axes = plt.subplots(1, len(metrics), figsize=(5 * len(metrics), 5))
+    # ── Figure 3: Per-subject scatter ────────────────────────────────────────
+    fig, axes = plt.subplots(1, len(metrics), figsize=(4.5 * len(metrics), 5.2),
+                             constrained_layout=False)
     if len(metrics) == 1: axes = [axes]
     for ax, metric in zip(axes, metrics):
         for m in models:
             vals = dfs[m][metric].dropna().reset_index(drop=True)
-            ax.scatter(range(len(vals)), vals, label=m, alpha=0.55, s=18, color=colors[m])
-        ax.set_title(METRICS[metric]['label'], fontsize=13, fontweight='bold')
-        ax.set_xlabel('Subject index', fontsize=11)
-        ax.set_ylabel('Value', fontsize=11)
-        ax.legend(fontsize=9)
-    plt.suptitle('Per-Subject Validation Values', fontsize=15, fontweight='bold', y=1.02)
-    plt.tight_layout()
+            ax.scatter(range(len(vals)), vals, alpha=0.6, s=22,
+                       color=colors[m], edgecolors='none')
+        ax.set_title(METRICS[metric]['label'])
+        ax.set_xlabel('Subject Index')
+        ax.set_ylabel('Value')
+    fig.suptitle('Per-Subject Validation Values', fontsize=14, fontweight='bold', y=1.01)
+    add_shared_legend(fig, models, colors)
+    fig.subplots_adjust(bottom=0.14, wspace=0.35)
     fig.savefig(os.path.join(out_dir, 'fig3_per_subject_scatter.png'), dpi=150, bbox_inches='tight')
     plt.close()
 
-    # ── Figure 4: Pairwise scatter (BAC vs Accuracy) ──
+    # ── Figure 4: BAC vs Accuracy scatter ────────────────────────────────────
     if 'bac' in metrics and 'Accuracy' in metrics:
-        fig, ax = plt.subplots(figsize=(6, 5))
+        fig, ax = plt.subplots(figsize=(5.5, 5.2), constrained_layout=False)
         for m in models:
             ax.scatter(dfs[m]['bac'], dfs[m]['Accuracy'],
-                       label=m, alpha=0.65, s=30, color=colors[m])
-        ax.set_xlabel('BAC', fontsize=12)
-        ax.set_ylabel('Accuracy', fontsize=12)
-        ax.set_title('BAC vs Accuracy per Subject', fontsize=13, fontweight='bold')
-        ax.legend()
-        plt.tight_layout()
+                       alpha=0.7, s=35, color=colors[m], edgecolors='none')
+        ax.set_xlabel('BAC')
+        ax.set_ylabel('Accuracy')
+        ax.set_title('BAC vs Accuracy per Subject')
+        add_shared_legend(fig, models, colors)
+        fig.subplots_adjust(bottom=0.18)
         fig.savefig(os.path.join(out_dir, 'fig4_bac_vs_accuracy.png'), dpi=150, bbox_inches='tight')
         plt.close()
 
-    # ── Figure 5: Heatmap of p-values ──
+    # ── Figure 5: p-value heatmaps ───────────────────────────────────────────
     for metric in metrics:
         pw = pairwise_tests(dfs, metric)
         model_list = list(dfs.keys())
@@ -171,22 +207,25 @@ def plot_all(dfs, stats_df, out_dir):
             i, j = model_list.index(m1), model_list.index(m2)
             mat[i, j] = p
             mat[j, i] = p
-        fig, ax = plt.subplots(figsize=(max(4, n), max(3.5, n - 0.5)))
+        fig, ax = plt.subplots(figsize=(max(4.5, n * 1.4), max(3.8, n * 1.2)),
+                               constrained_layout=True)
         im = ax.imshow(mat, vmin=0, vmax=0.1, cmap='RdYlGn_r')
-        plt.colorbar(im, ax=ax, label='p-value')
+        cb = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+        cb.set_label('p-value', fontsize=10)
         ax.set_xticks(range(n)); ax.set_yticks(range(n))
-        ax.set_xticklabels(model_list, rotation=30, ha='right')
-        ax.set_yticklabels(model_list)
+        ax.set_xticklabels(model_list, rotation=30, ha='right', fontsize=10)
+        ax.set_yticklabels(model_list, fontsize=10)
         for i in range(n):
             for j in range(n):
-                sig = '***' if mat[i,j] < 0.001 else ('**' if mat[i,j] < 0.01 else
-                      ('*' if mat[i,j] < 0.05 else 'ns'))
-                txt = f'{mat[i,j]:.3f}\n{sig}' if i != j else '—'
-                ax.text(j, i, txt, ha='center', va='center', fontsize=8,
-                        color='white' if mat[i,j] < 0.03 else 'black')
-        ax.set_title(f'Paired t-test p-values: {METRICS[metric]["label"]}',
-                     fontsize=12, fontweight='bold')
-        plt.tight_layout()
+                if i == j:
+                    ax.text(j, i, '—', ha='center', va='center', fontsize=11, color='#555')
+                else:
+                    sig = ('***' if mat[i,j] < 0.001 else '**' if mat[i,j] < 0.01 else
+                           '*'   if mat[i,j] < 0.05  else 'ns')
+                    txt = f'{mat[i,j]:.3f}\n{sig}'
+                    ax.text(j, i, txt, ha='center', va='center', fontsize=8.5,
+                            color='white' if mat[i,j] < 0.03 else '#111')
+        ax.set_title(f'Paired t-test p-values: {METRICS[metric]["label"]}')
         fig.savefig(os.path.join(out_dir, f'fig5_pvalue_heatmap_{metric}.png'),
                     dpi=150, bbox_inches='tight')
         plt.close()
