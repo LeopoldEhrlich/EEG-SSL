@@ -1,6 +1,7 @@
 import torch
 import tqdm
 import argparse
+import json
 
 import objgraph
 
@@ -41,6 +42,9 @@ if __name__ == '__main__':
     parser.add_argument('--device', default=None, type=int,
                     help='GPU device index to use (e.g. 0 or 1). Defaults to auto-detect.')
 
+    parser.add_argument('--encoder-map', default=None,
+                    help="Path to dataset_index_map.json written by pretrain.py.") #added this argument to allow downstream to know which encoder weights to load for each dataset, since the mapping is not necessarily 1:1 with dataset names
+
     args = parser.parse_args()
     experiment = ExperimentConfig(args.ds_config)
 
@@ -71,6 +75,11 @@ if __name__ == '__main__':
 
             else:
                 model = LinearHeadBENDR.from_dataset(training)
+            
+            encoder_map = None
+            if args.encoder_map is not None:
+                with open(args.encoder_map, 'r') as f:
+                    encoder_map = json.load(f)
 
             if not args.random_init:
                 model.load_pretrained_modules(experiment.encoder_weights, experiment.context_weights,
