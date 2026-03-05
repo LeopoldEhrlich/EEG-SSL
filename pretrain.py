@@ -375,6 +375,19 @@ if __name__ == '__main__':
 
             encoder.save(f'checkpoints/encoder_{model_name}.pt')
             contextualizer.save(f'checkpoints/contextualizer_{model_name}.pt')
+          
+            #edited section to also save sub-encoders when using GNN, so we can load them individually at test time by dataset 
+                ds_map = {}
+                for key in encoder.encoders:
+                    encoder.save_encoder(
+                        key, f'checkpoints/encoder_{model_name}_{key}.pt') #saves the encoder for the specific dataset key, ex: dataset_1: PhysioNet
+                    tqdm.tqdm.write(f"  Saved sub-encoder: {key}")
+            
+                for i, name in enumerate(experiment.datasets.keys(), start=1):
+                    ds_map[name] = f'checkpoints/encoder_{model_name}_dataset_{i}.pt'
+                with open('checkpoints/dataset_index_map.json', 'w') as f:
+                    json.dump(ds_map, f, indent=2)
+                tqdm.tqdm.write("  Saved checkpoints/dataset_index_map.json")
 
     #save initial weights before any training so we always have a fallback checkpoint
     simple_checkpoint(None)
