@@ -105,7 +105,7 @@ class SingleDatasetEncoder(torch.nn.Module): #EDITS MADE HERE to create a datase
             nhid=hidden_size,
             nout=hidden_size,
             dropout=dropout,
-            pool_ratio=0.6,
+            pool_ratio=0.5,
         )
 
         self.encoder_h = hidden_size
